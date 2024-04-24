@@ -4,6 +4,7 @@ instructions - make sure that you have anaconda prompt installed then run in wit
 git clone https://github.com/codebybloom/Wav2Lip_facetime.git
 conda create --name faceTime python=3.9
 conda activate faceTime
+cd Wav2Lip_facetime
 pip install -r requirements.txt
 pip install opencv-python
 pip install TTS
