@@ -1,4 +1,4 @@
-instructions 
+instructions - make sure that you have anaconda prompt installed then run in with admin privledges to run the gradio successfully
 
 #1. create environment in conda and install requirements
 git clone https://github.com/codebybloom/Wav2Lip_facetime.git
