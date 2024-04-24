@@ -26,4 +26,4 @@ else:
 #3. run gradio in cmd as admin and app in anaconda environment 
 python grad.py
 conda activate faceTime
-python facetimeApp.py --checkpoint_path "wav2lip_gan.pth" --face "ian5sec25fps.mp4" --audio "iann.wav"
+python text2facetimeApp.py --checkpoint_path "wav2lip_gan.pth" --face "ian5sec25fps.mp4" --audio "iann.wav"
