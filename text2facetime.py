@@ -23,7 +23,7 @@ import multiprocessing
 # Load models (text to speech and speech to text and llm)
 tts = TTS(model_name="tts_models/multilingual/multi-dataset/your_tts")
 model_name = 'microsoft/phi-2'
-generator = pipeline('text-generation', model=model_name)
+generator = pipeline("text-generation", model=model_name_or_path,device_map='cuda')#change to cpu if your cpu is struggling here
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 
 # Take bio
