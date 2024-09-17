@@ -27,8 +27,6 @@ generator = pipeline("text-generation", model=model_name_or_path,device_map='cud
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 
 # Take bio
-freq = 16000
-duration = 7
 conv_hist = ''
 user_input = 'new response'
 response = ''
