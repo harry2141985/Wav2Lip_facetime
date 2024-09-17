@@ -22,7 +22,7 @@ import multiprocessing
 #loop = asyncio.new_event_loop()
 # Load models (text to speech and speech to text and llm)
 tts = TTS(model_name="tts_models/multilingual/multi-dataset/your_tts")
-#model = whisper.load_model("base")
+model = whisper.load_model("base")
 model_name = 'microsoft/phi-2'
 generator = pipeline('text-generation', model=model_name)
 tokenizer = AutoTokenizer.from_pretrained(model_name)
