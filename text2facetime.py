@@ -19,19 +19,23 @@ from pydub import AudioSegment
 from pydub.playback import play
 import argparse
 import multiprocessing
-#loop = asyncio.new_event_loop()
+
 # Load models (text to speech and speech to text and llm)
 tts = TTS(model_name="tts_models/multilingual/multi-dataset/your_tts")
 model_name = 'microsoft/phi-2'
-generator = pipeline("text-generation", model=model_name_or_path,device_map='cuda')#change to cpu if your cpu is struggling here
+model_name_or_path = "microsoft/phi-2"  # Define the model name or path
+generator = pipeline("text-generation", model=model_name_or_path, device_map='cuda')  # Change to 'cpu' if needed
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 
-# Take bio
-conv_hist = ''
-user_input = 'new response'
-response = ''
+# Define Emma's persona
+demo = """Emma's persona: Emma is a young woman who works in a charming flower shop. She has a passion for flowers and enjoys helping customers choose the perfect arrangements. Emma is friendly and loves to share her knowledge about different flower types and their meanings. She also enjoys gardening in her spare time and is known for her cheerful personality. Emma's full name is Emma Bloom. She is 24 years old and loves indie music.
+<START>
+[DIALOGUE HISTORY]
+Emma: Hello there! Welcome to our flower shop. How can I help you today?
+You: Hi Emma! I’m looking for some flowers for a special occasion.
+Emma: That sounds wonderful! What occasion is it for? You can tell me about it, and I'll help you pick the perfect flowers!
+Emma: Great! We have some lovely options. Would you like something bright and cheerful, or something elegant and sophisticated?"""
 
-demo = "Ian's persona: Ian is a man that enjoys coding in python to learn more about machine learning. Ian works with machine learning by researching vision transformers, large language models and text to speech models. Ian's full name is Ian Codes. Ian is 22 years old. He is nice and likes alternative music. He is very knowledgeable about coding with python.\n<START>\n[DIALOGUE HISTORY]\nIan: Hello there I am Ian, I love coding and researching machine learning.\nYou: Hi how is it going Ian.\nIan: I'm doing well how about you?\nYou: I'm good too just learning more about local language models on youtube.\nIan: Oh that's cool I just have been using old models like gpt neo."
 print('demo\n')
 print(demo)
 output_file_path = "passit_output.txt"
@@ -59,43 +63,44 @@ if __name__ == '__main__':
     parser.add_argument('--outfile', type=str, help='Video path to save result', default='results/result_voice.mp4') 
     args = parser.parse_args()
 
-    for i in range(0,10):
-        num = str(i)
-        newinput = input("Type response: ")
+    conv_hist = ''
+    user_input = 'new response'
+    response = ''
+
+    for i in range(0, 10):
+        newinput = input("Type your response to Emma: ")
         user_input = "\nYou: " + newinput
-        if re.search(r"\.$", user_input):
-            user_input = user_input.replace(r".$", r"\.\\n")
+        
+        # Update conversation history
         conv_hist += user_input + '\n'
-
-        # Model response
+        
+        # Model response generation
         user_input = demo + conv_hist
-        try:
-            response = generator(user_input, max_new_tokens=25, do_sample=True, temperature=0.7, top_p=0.9,
-                                 repetition_penalty=1.1)[0]['generated_text']
-        except Exception as e:
-            print("silly")
-        response = response.replace(user_input, '')
-        conv_hist += "Ian : " + response.strip('\n') + '\n'
-        response = response.replace("You: ","")
-        text_wav = response.replace("Ian: ", "")
-        filepath = num + ".wav"
-        user_input += response.strip('\n')
-
+        response = generator(user_input, max_new_tokens=25, do_sample=True, temperature=0.7, top_p=0.9, repetition_penalty=1.1)[0]['generated_text']
+        
+        # Process response
+        response = response.replace(user_input, '').strip()
+        conv_hist += "Emma: " + response + '\n'
+        
+        text_wav = response.replace("Emma: ", "").strip()
+        filepath = f"{i}.wav"
+        
         # Text to speech
         print("Generating voice")
         tts.tts_to_file(text=text_wav, language="en", speaker_wav="iann.wav", file_path=filepath)
-        print("playing audio:")
-        #play(AudioSegment.from_file(filepath))
+        print("Playing audio:")
+        
+        # Uncomment to play the generated audio
+        # play(AudioSegment.from_file(filepath))
 
         # Perform lip-syncing
-        face_filepath = "ian5sec25fps.mp4"
-        checkpoint_filepath = "checkpoints/wav2lip_gan.pth"
-        outfile = "results/result_voice.mp4"
+        face_filepath = "ian5sec25fps.mp4"  # Path to the video/image with face
+        checkpoint_filepath = args.checkpoint_path  # Use command-line argument for checkpoint
+        outfile = args.outfile  # Output file for the lip-synced video
         perform_lip_sync(checkpoint_filepath, face_filepath, filepath, outfile)
-      
+
         # Update the Gradio interface after completing the loop
-        outfile = "results/result_voice.mp4"  # Replace with actual outfile path
-        passit = demo+conv_hist
+        passit = demo + conv_hist
         output_file_path = "passit_output.txt"
 
         # Write the content of the 'passit' variable to the text file
