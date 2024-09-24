@@ -18,13 +18,11 @@ import gradio as gr
 from pydub import AudioSegment
 from pydub.playback import play
 import argparse
-import multiprocessing
 
 # Load models (text to speech and speech to text and llm)
 tts = TTS(model_name="tts_models/multilingual/multi-dataset/your_tts")
 model_name = 'microsoft/phi-2'
-model_name_or_path = "microsoft/phi-2"  # Define the model name or path
-generator = pipeline("text-generation", model=model_name_or_path, device_map='cuda')  # Change to 'cpu' if needed
+generator = pipeline("text-generation", model=model_name, device_map='cuda')  # Change to 'cpu' if needed
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 
 # Define Emma's persona
@@ -38,11 +36,10 @@ Emma: Great! We have some lovely options. Would you like something bright and ch
 
 print('demo\n')
 print(demo)
-output_file_path = "passit_output.txt"
-with open(output_file_path, "w") as file:
-    file.write(demo)
 
 def perform_lip_sync(checkpoint_path, face, audio, outfile):
+    # Prepare arguments for lip-sync
+    args = argparse.Namespace()
     args.checkpoint_path = checkpoint_path
     args.face = face
     args.audio = audio
@@ -54,55 +51,55 @@ def perform_lip_sync(checkpoint_path, face, audio, outfile):
     args.resize_face = 1
     main(args)
 
+def chat_with_emma(user_input, checkpoint_path, face_filepath, audio_filepath):
+    conv_hist = ''
+    response = ''
+    
+    # Update conversation history
+    conv_hist += f"\nYou: {user_input}\n"
+    
+    # Model response generation
+    full_input = demo + conv_hist
+    response = generator(full_input, max_new_tokens=25, do_sample=True, temperature=0.7, top_p=0.9, repetition_penalty=1.1)[0]['generated_text']
+    
+    # Process response
+    response = response.replace(full_input, '').strip()
+    conv_hist += f"Emma: {response}\n"
+    
+    text_wav = response.replace("Emma: ", "").strip()
+    filepath = f"temp_audio.wav"  # Temporary audio file path
+    
+    # Text to speech
+    print("Generating voice")
+    tts.tts_to_file(text=text_wav, language="en", speaker_wav="iann.wav", file_path=filepath)
+    print("Playing audio:")
+    
+    # Uncomment to play the generated audio
+    # play(AudioSegment.from_file(filepath))
+
+    # Perform lip-syncing
+    outfile = "results/result_voice.mp4"  # Output file for the lip-synced video
+    perform_lip_sync(checkpoint_path, face_filepath, filepath, outfile)
+
+    # Return the result video path and conversation history
+    return outfile, conv_hist
+
 if __name__ == '__main__':
     # Parse command-line arguments using argparse
     parser = argparse.ArgumentParser(description='Inference code to lip-sync videos in the wild using Wav2Lip models')
     parser.add_argument('--checkpoint_path', type=str, help='Name of saved checkpoint to load weights from', required=True)
     parser.add_argument('--face', type=str, help='Filepath of video/image that contains faces to use', required=True)
-    parser.add_argument('--audio', type=str, help='Filepath of video/audio file to use as raw audio source', required=True)
-    parser.add_argument('--outfile', type=str, help='Video path to save result', default='results/result_voice.mp4') 
+    parser.add_argument('--audio', type=str, help='Filepath of audio file to use for lip syncing', required=True)  
     args = parser.parse_args()
 
-    conv_hist = ''
-    user_input = 'new response'
-    response = ''
+    # Set up Gradio interface with sharing enabled
+    iface = gr.Interface(
+        fn=lambda user_input: chat_with_emma(user_input, args.checkpoint_path, args.face, args.audio),
+        inputs="text",
+        outputs=["video", "text"],
+        title="Chat with Emma",
+        description="Interact with Emma, a friendly florist, and get flower recommendations!"
+    )
 
-    for i in range(0, 10):
-        newinput = input("Type your response to Emma: ")
-        user_input = "\nYou: " + newinput
-        
-        # Update conversation history
-        conv_hist += user_input + '\n'
-        
-        # Model response generation
-        user_input = demo + conv_hist
-        response = generator(user_input, max_new_tokens=25, do_sample=True, temperature=0.7, top_p=0.9, repetition_penalty=1.1)[0]['generated_text']
-        
-        # Process response
-        response = response.replace(user_input, '').strip()
-        conv_hist += "Emma: " + response + '\n'
-        
-        text_wav = response.replace("Emma: ", "").strip()
-        filepath = f"{i}.wav"
-        
-        # Text to speech
-        print("Generating voice")
-        tts.tts_to_file(text=text_wav, language="en", speaker_wav="iann.wav", file_path=filepath)
-        print("Playing audio:")
-        
-        # Uncomment to play the generated audio
-        # play(AudioSegment.from_file(filepath))
-
-        # Perform lip-syncing
-        face_filepath = "ian5sec25fps.mp4"  # Path to the video/image with face
-        checkpoint_filepath = args.checkpoint_path  # Use command-line argument for checkpoint
-        outfile = args.outfile  # Output file for the lip-synced video
-        perform_lip_sync(checkpoint_filepath, face_filepath, filepath, outfile)
-
-        # Update the Gradio interface after completing the loop
-        passit = demo + conv_hist
-        output_file_path = "passit_output.txt"
-
-        # Write the content of the 'passit' variable to the text file
-        with open(output_file_path, "w") as file:
-            file.write(passit)
+    # Launch the interface with share=True
+    iface.launch(share=True)
